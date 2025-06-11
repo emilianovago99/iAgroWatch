@@ -274,12 +274,12 @@
                 <div class="tank-info">
                     <div class="tank-dimensions">
                         <div class="form-group">
-                            <label for="tankWidth">Ancho del tinaco (cm):</label>
+                            <label for="tankWidth">Diámetro del tinaco (cm):</label>
                             <input type="number" id="tankWidth" class="form-control" value="50" min="1" step="1">
                         </div>
                         <div class="form-group">
-                            <label for="tankLength">Largo del tinaco (cm):</label>
-                            <input type="number" id="tankLength" class="form-control" value="50" min="1" step="1">
+                            <label for="tankLength">Altura del tinaco (cm):</label>
+                            <input type="number" id="tankLength" class="form-control" value="100" min="1" step="1">
                         </div>
                     </div>
                     <div class="volume-info">
@@ -344,14 +344,17 @@
         }
 
         // Función para calcular el volumen de agua
-        function calculateWaterVolume(distance, tankWidth, tankLength) {
-            // Convertir la distancia de cm a metros
-            const distanceInMeters = distance / 100;
-            const widthInMeters = tankWidth / 100;
-            const lengthInMeters = tankLength / 100;
+        function calculateWaterVolume(distance, diameter, height) {
+            // La distancia es desde el tope del tinaco hasta el agua
+            // Por lo tanto, la altura del agua es la altura total menos la distancia
+            const waterHeight = height - distance;
             
-            // Calcular el volumen en metros cúbicos
-            const volume = widthInMeters * lengthInMeters * distanceInMeters;
+            // Convertir a metros para el cálculo
+            const waterHeightInMeters = waterHeight / 100;
+            const radiusInMeters = (diameter / 2) / 100;
+            
+            // Calcular el volumen en metros cúbicos usando la fórmula del cilindro: V = π * r² * h
+            const volume = Math.PI * Math.pow(radiusInMeters, 2) * waterHeightInMeters;
             
             return volume;
         }
@@ -391,18 +394,17 @@
                 const timestamp = new Date(sensorData.timestamp);
 
                 // Obtener dimensiones del tanque
-                const tankWidth = parseFloat(document.getElementById('tankWidth').value) || 50;
-                const tankLength = parseFloat(document.getElementById('tankLength').value) || 50;
-                const tankHeight = 100; // Altura fija del tanque en cm
+                const diameter = parseFloat(document.getElementById('tankWidth').value) || 50;
+                const height = parseFloat(document.getElementById('tankLength').value) || 100;
                 
-                // Calcular el porcentaje de llenado
-                const fillPercentage = ((tankHeight - distance) / tankHeight) * 100;
+                // Calcular el porcentaje de llenado (invertido porque mayor distancia = menos agua)
+                const fillPercentage = ((height - distance) / height) * 100;
                 const clampedPercentage = Math.max(0, Math.min(100, fillPercentage));
                 
                 // Calcular volúmenes
-                const currentVolumeValue = calculateWaterVolume(distance, tankWidth, tankLength);
-                const initialVolumeValue = calculateWaterVolume(0, tankWidth, tankLength); // Volumen cuando está lleno
-                const consumedVolumeValue = initialVolumeValue - currentVolumeValue;
+                const currentVolumeValue = calculateWaterVolume(distance, diameter, height);
+                const totalVolumeValue = calculateWaterVolume(0, diameter, height); // Volumen cuando está lleno (distancia = 0)
+                const consumedVolumeValue = totalVolumeValue - currentVolumeValue;
                 
                 // Actualizar la altura del nivel de agua
                 waterLevel.style.height = `${clampedPercentage}%`;
@@ -410,7 +412,7 @@
                 // Actualizar los textos
                 waterLevelText.textContent = `${clampedPercentage.toFixed(1)}%`;
                 waterLevelPercentage.textContent = `${clampedPercentage.toFixed(1)}%`;
-                initialVolume.textContent = formatVolume(initialVolumeValue);
+                initialVolume.textContent = formatVolume(totalVolumeValue);
                 currentVolume.textContent = formatVolume(currentVolumeValue);
                 consumedVolume.textContent = formatVolume(consumedVolumeValue);
                 currentVolumeStat.textContent = formatVolume(currentVolumeValue);
@@ -429,6 +431,16 @@
                 } else {
                     waterLevel.style.backgroundColor = '#4CAF50'; // Verde para nivel alto
                 }
+
+                console.log('Datos calculados:', {
+                    distancia: distance,
+                    alturaTotal: height,
+                    alturaAgua: height - distance,
+                    porcentaje: clampedPercentage,
+                    volumenTotal: formatVolume(totalVolumeValue),
+                    volumenActual: formatVolume(currentVolumeValue),
+                    volumenConsumido: formatVolume(consumedVolumeValue)
+                });
 
                 // Actualizar datos para el gráfico
                 waterLevelData.push({
