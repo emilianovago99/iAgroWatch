@@ -283,7 +283,9 @@
                         </div>
                     </div>
                     <div class="volume-info">
+                        <p>Volumen inicial: <span id="initialVolume">0</span></p>
                         <p>Volumen actual: <span id="currentVolume">0</span></p>
+                        <p>Agua consumida: <span id="consumedVolume">0</span></p>
                         <p>Nivel de agua: <span id="waterLevelPercentage">0%</span></p>
                     </div>
                 </div>
@@ -293,7 +295,7 @@
                 <h3><i class="fas fa-chart-line"></i> Estadísticas</h3>
                 <div class="stats-grid">
                     <div class="stat-item">
-                        <div class="stat-value" id="currentVolume">0 L</div>
+                        <div class="stat-value" id="currentVolumeStat">0 L</div>
                         <div class="stat-label">Volumen Actual</div>
                     </div>
                     <div class="stat-item">
@@ -325,32 +327,18 @@
         // Función para obtener datos del sensor
         async function getSensorData() {
             try {
-                const response = await fetch('http://10.10.7.3', {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    },
-                    mode: 'cors',
-                    credentials: 'omit'
-                });
+                // Por ahora usamos un valor simulado
+                const mockData = {
+                    distancia_cm: Math.floor(Math.random() * 50) + 10, // Valor aleatorio entre 10 y 60 cm
+                    timestamp: new Date().toISOString()
+                };
                 
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-                }
+                // Simulamos un pequeño retraso como si fuera una petición real
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
-                const data = await response.json();
-                console.log('Datos del sensor:', data);
-                
-                if (typeof data.distancia_cm === 'undefined') {
-                    throw new Error('El valor distancia_cm no está presente en la respuesta');
-                }
-                
-                return data;
+                return mockData;
             } catch (error) {
                 console.error('Error:', error);
-                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                    throw new Error('No se pudo conectar con el sensor. Verifica la conexión de red.');
-                }
                 throw error;
             }
         }
@@ -379,59 +367,90 @@
         }
 
         // Función para actualizar la visualización del tanque
-        function updateTankVisualization(distance) {
-            const waterLevel = document.getElementById('waterLevel');
-            const waterLevelText = document.getElementById('waterLevelText');
-            const waterLevelPercentage = document.getElementById('waterLevelPercentage');
-            const currentVolume = document.getElementById('currentVolume');
-            
-            if (!waterLevel || !waterLevelText || !waterLevelPercentage || !currentVolume) {
-                console.error('No se encontraron los elementos del tanque');
-                return;
+        async function updateTankVisualization() {
+            try {
+                const waterLevel = document.getElementById('waterLevel');
+                const waterLevelText = document.getElementById('waterLevelText');
+                const waterLevelPercentage = document.getElementById('waterLevelPercentage');
+                const currentVolume = document.getElementById('currentVolume');
+                const initialVolume = document.getElementById('initialVolume');
+                const consumedVolume = document.getElementById('consumedVolume');
+                const currentVolumeStat = document.getElementById('currentVolumeStat');
+                const distanceElement = document.getElementById('distance');
+                const lastUpdateElement = document.getElementById('lastUpdate');
+                
+                if (!waterLevel || !waterLevelText || !waterLevelPercentage || !currentVolume || 
+                    !initialVolume || !consumedVolume || !currentVolumeStat || !distanceElement || !lastUpdateElement) {
+                    console.error('No se encontraron los elementos del tanque');
+                    return;
+                }
+
+                // Obtener datos del sensor
+                const sensorData = await getSensorData();
+                const distance = sensorData.distancia_cm;
+                const timestamp = new Date(sensorData.timestamp);
+
+                // Obtener dimensiones del tanque
+                const tankWidth = parseFloat(document.getElementById('tankWidth').value) || 50;
+                const tankLength = parseFloat(document.getElementById('tankLength').value) || 50;
+                const tankHeight = 100; // Altura fija del tanque en cm
+                
+                // Calcular el porcentaje de llenado
+                const fillPercentage = ((tankHeight - distance) / tankHeight) * 100;
+                const clampedPercentage = Math.max(0, Math.min(100, fillPercentage));
+                
+                // Calcular volúmenes
+                const currentVolumeValue = calculateWaterVolume(distance, tankWidth, tankLength);
+                const initialVolumeValue = calculateWaterVolume(0, tankWidth, tankLength); // Volumen cuando está lleno
+                const consumedVolumeValue = initialVolumeValue - currentVolumeValue;
+                
+                // Actualizar la altura del nivel de agua
+                waterLevel.style.height = `${clampedPercentage}%`;
+                
+                // Actualizar los textos
+                waterLevelText.textContent = `${clampedPercentage.toFixed(1)}%`;
+                waterLevelPercentage.textContent = `${clampedPercentage.toFixed(1)}%`;
+                initialVolume.textContent = formatVolume(initialVolumeValue);
+                currentVolume.textContent = formatVolume(currentVolumeValue);
+                consumedVolume.textContent = formatVolume(consumedVolumeValue);
+                currentVolumeStat.textContent = formatVolume(currentVolumeValue);
+                distanceElement.textContent = `${distance} cm`;
+                lastUpdateElement.textContent = timestamp.toLocaleTimeString('es-ES', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                // Cambiar el color según el nivel
+                if (clampedPercentage < 20) {
+                    waterLevel.style.backgroundColor = '#ff5252'; // Rojo para nivel bajo
+                } else if (clampedPercentage < 50) {
+                    waterLevel.style.backgroundColor = '#ffd740'; // Amarillo para nivel medio
+                } else {
+                    waterLevel.style.backgroundColor = '#4CAF50'; // Verde para nivel alto
+                }
+
+                // Actualizar datos para el gráfico
+                waterLevelData.push({
+                    time: timestamp.toLocaleTimeString('es-ES', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }),
+                    level: clampedPercentage,
+                    volume: currentVolumeValue
+                });
+
+                // Mantener solo los últimos puntos
+                if (waterLevelData.length > maxDataPoints) {
+                    waterLevelData.shift();
+                }
+
+                updateWaterLevelChart();
+            } catch (error) {
+                console.error('Error al actualizar la visualización:', error);
+                showAlert('❌ Error al actualizar los datos');
             }
-
-            // Obtener dimensiones del tanque
-            const tankWidth = parseFloat(document.getElementById('tankWidth').value) || 50;
-            const tankLength = parseFloat(document.getElementById('tankLength').value) || 50;
-            const tankHeight = 100; // Altura fija del tanque en cm
-            
-            // Calcular el porcentaje de llenado
-            const fillPercentage = ((tankHeight - distance) / tankHeight) * 100;
-            const clampedPercentage = Math.max(0, Math.min(100, fillPercentage));
-            
-            // Calcular volumen actual
-            const volume = calculateWaterVolume(distance, tankWidth, tankLength);
-            
-            // Actualizar la altura del nivel de agua
-            waterLevel.style.height = `${clampedPercentage}%`;
-            
-            // Actualizar los textos
-            waterLevelText.textContent = `${clampedPercentage.toFixed(1)}%`;
-            waterLevelPercentage.textContent = `${clampedPercentage.toFixed(1)}%`;
-            currentVolume.textContent = formatVolume(volume);
-            
-            // Cambiar el color según el nivel
-            if (clampedPercentage < 20) {
-                waterLevel.style.backgroundColor = '#ff5252'; // Rojo para nivel bajo
-            } else if (clampedPercentage < 50) {
-                waterLevel.style.backgroundColor = '#ffd740'; // Amarillo para nivel medio
-            } else {
-                waterLevel.style.backgroundColor = '#4CAF50'; // Verde para nivel alto
-            }
-
-            // Actualizar datos para el gráfico
-            waterLevelData.push({
-                time: new Date().toLocaleTimeString(),
-                level: clampedPercentage,
-                volume: volume
-            });
-
-            // Mantener solo los últimos 10 puntos
-            if (waterLevelData.length > maxDataPoints) {
-                waterLevelData.shift();
-            }
-
-            updateWaterLevelChart();
         }
 
         // Función para mostrar alertas
@@ -492,7 +511,9 @@
                                 display: false
                             },
                             ticks: {
-                                color: getComputedStyle(document.body).getPropertyValue('--chart-text')
+                                color: getComputedStyle(document.body).getPropertyValue('--chart-text'),
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     },
@@ -501,25 +522,26 @@
                             labels: {
                                 color: getComputedStyle(document.body).getPropertyValue('--text-color')
                             }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Nivel: ${context.raw.toFixed(1)}%`;
+                                }
+                            }
                         }
                     }
                 }
             });
         }
 
-        // Función para actualizar datos periódicamente
-        async function updateData() {
-            try {
-                const data = await getSensorData();
-                updateTankVisualization(data.distancia_cm);
-            } catch (error) {
-                showAlert('❌ Error al obtener datos del sensor');
-            }
-        }
+        // Agregar event listeners para los inputs
+        document.getElementById('tankWidth').addEventListener('input', updateTankVisualization);
+        document.getElementById('tankLength').addEventListener('input', updateTankVisualization);
 
         // Iniciar actualizaciones periódicas
-        updateData();
-        setInterval(updateData, updateInterval);
+        updateTankVisualization();
+        setInterval(updateTankVisualization, updateInterval);
     </script>
 </body>
 </html> 
