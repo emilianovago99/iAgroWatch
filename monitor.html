@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Agua - Sistema de Riego</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #45a049;
+            --secondary-color: #2196F3;
+            --text-color: #333;
+            --bg-color: #fff;
+            --card-bg: #f9f9f9;
+            --border-color: #e0e0e0;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #66bb6a;
+            --primary-dark: #4caf50;
+            --secondary-color: #42a5f5;
+            --text-color: #ffffff;
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --border-color: #404040;
+            --input-bg: #333333;
+            --input-text: #ffffff;
+            --chart-bg: #2d2d2d;
+            --chart-grid: #404040;
+            --chart-text: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-color);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .nav-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .nav-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .monitor-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .monitor-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tank-container {
+            width: 100%;
+            height: 300px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+        }
+
+        .water-level {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: var(--primary-color);
+            transition: height 0.5s ease;
+        }
+
+        .water-level-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2em;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .tank-info {
+            margin-top: 20px;
+        }
+
+        .tank-dimensions {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tank-dimensions .form-group {
+            margin-bottom: 12px;
+        }
+
+        .tank-dimensions label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .tank-dimensions input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .tank-dimensions input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+
+        .volume-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .volume-info p {
+            margin: 8px 0;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .volume-info span {
+            color: #4CAF50;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 5px 0;
+        }
+
+        .stat-label {
+            color: var(--text-color);
+            font-size: 0.9em;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            height: 300px;
+        }
+
+        .alert {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .monitor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="nav-button" onclick="window.location.href='index.html'">
+        <i class="fas fa-calculator"></i>
+        Calculadora de Riego
+    </button>
+
+    <div class="container">
+        <div class="header">
+            <h1>Monitor de Agua en Tiempo Real</h1>
+            <p>Visualización y control del sistema de riego</p>
+        </div>
+
+        <div class="monitor-grid">
+            <div class="monitor-card">
+                <h3><i class="fas fa-water"></i> Nivel del Tanque</h3>
+                <div class="tank-container">
+                    <div id="waterLevel" class="water-level"></div>
+                    <div id="waterLevelText" class="water-level-text">0%</div>
+                </div>
+                <div class="tank-info">
+                    <div class="tank-dimensions">
+                        <div class="form-group">
+                            <label for="tankWidth">Ancho del tinaco (cm):</label>
+                            <input type="number" id="tankWidth" class="form-control" value="50" min="1" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="tankLength">Largo del tinaco (cm):</label>
+                            <input type="number" id="tankLength" class="form-control" value="50" min="1" step="1">
+                        </div>
+                    </div>
+                    <div class="volume-info">
+                        <p>Volumen actual: <span id="currentVolume">0</span></p>
+                        <p>Nivel de agua: <span id="waterLevelPercentage">0%</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="monitor-card">
+                <h3><i class="fas fa-chart-line"></i> Estadísticas</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="currentVolume">0 L</div>
+                        <div class="stat-label">Volumen Actual</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="distance">0 cm</div>
+                        <div class="stat-label">Distancia del Sensor</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="lastUpdate">--:--</div>
+                        <div class="stat-label">Última Actualización</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="waterLevelChart"></canvas>
+        </div>
+
+        <div id="alerts"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let waterChart;
+        const updateInterval = 5000; // 5 segundos
+        const maxDataPoints = 20; // Número máximo de puntos en el gráfico
+        let waterLevelData = [];
+
+        // Función para obtener datos del sensor
+        async function getSensorData() {
+            try {
+                const response = await fetch('http://10.10.7.3', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Datos del sensor:', data);
+                
+                if (typeof data.distancia_cm === 'undefined') {
+                    throw new Error('El valor distancia_cm no está presente en la respuesta');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error:', error);
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    throw new Error('No se pudo conectar con el sensor. Verifica la conexión de red.');
+                }
+                throw error;
+            }
+        }
+
+        // Función para calcular el volumen de agua
+        function calculateWaterVolume(distance, tankWidth, tankLength) {
+            // Convertir la distancia de cm a metros
+            const distanceInMeters = distance / 100;
+            const widthInMeters = tankWidth / 100;
+            const lengthInMeters = tankLength / 100;
+            
+            // Calcular el volumen en metros cúbicos
+            const volume = widthInMeters * lengthInMeters * distanceInMeters;
+            
+            return volume;
+        }
+
+        // Función para formatear el volumen
+        function formatVolume(volumeInM3) {
+            const volumeInMl = volumeInM3 * 1000000; // Convertir a mililitros
+            if (volumeInMl < 1000) {
+                return `${Math.round(volumeInMl)} ml`;
+            } else {
+                return `${(volumeInMl / 1000).toFixed(2)} L`;
+            }
+        }
+
+        // Función para actualizar la visualización del tanque
+        function updateTankVisualization(distance) {
+            const waterLevel = document.getElementById('waterLevel');
+            const waterLevelText = document.getElementById('waterLevelText');
+            const waterLevelPercentage = document.getElementById('waterLevelPercentage');
+            const currentVolume = document.getElementById('currentVolume');
+            
+            if (!waterLevel || !waterLevelText || !waterLevelPercentage || !currentVolume) {
+                console.error('No se encontraron los elementos del tanque');
+                return;
+            }
+
+            // Obtener dimensiones del tanque
+            const tankWidth = parseFloat(document.getElementById('tankWidth').value) || 50;
+            const tankLength = parseFloat(document.getElementById('tankLength').value) || 50;
+            const tankHeight = 100; // Altura fija del tanque en cm
+            
+            // Calcular el porcentaje de llenado
+            const fillPercentage = ((tankHeight - distance) / tankHeight) * 100;
+            const clampedPercentage = Math.max(0, Math.min(100, fillPercentage));
+            
+            // Calcular volumen actual
+            const volume = calculateWaterVolume(distance, tankWidth, tankLength);
+            
+            // Actualizar la altura del nivel de agua
+            waterLevel.style.height = `${clampedPercentage}%`;
+            
+            // Actualizar los textos
+            waterLevelText.textContent = `${clampedPercentage.toFixed(1)}%`;
+            waterLevelPercentage.textContent = `${clampedPercentage.toFixed(1)}%`;
+            currentVolume.textContent = formatVolume(volume);
+            
+            // Cambiar el color según el nivel
+            if (clampedPercentage < 20) {
+                waterLevel.style.backgroundColor = '#ff5252'; // Rojo para nivel bajo
+            } else if (clampedPercentage < 50) {
+                waterLevel.style.backgroundColor = '#ffd740'; // Amarillo para nivel medio
+            } else {
+                waterLevel.style.backgroundColor = '#4CAF50'; // Verde para nivel alto
+            }
+
+            // Actualizar datos para el gráfico
+            waterLevelData.push({
+                time: new Date().toLocaleTimeString(),
+                level: clampedPercentage,
+                volume: volume
+            });
+
+            // Mantener solo los últimos 10 puntos
+            if (waterLevelData.length > maxDataPoints) {
+                waterLevelData.shift();
+            }
+
+            updateWaterLevelChart();
+        }
+
+        // Función para mostrar alertas
+        function showAlert(message) {
+            const alerts = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = 'alert';
+            alert.innerHTML = message;
+            alerts.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Función para actualizar el gráfico
+        function updateWaterLevelChart() {
+            const ctx = document.getElementById('waterLevelChart').getContext('2d');
+            
+            if (waterChart) {
+                waterChart.destroy();
+            }
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+            gradient.addColorStop(0, 'rgba(76, 175, 80, 0.8)');
+            gradient.addColorStop(1, 'rgba(76, 175, 80, 0.1)');
+
+            waterChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: waterLevelData.map(d => d.time),
+                    datasets: [{
+                        label: 'Nivel de Agua (%)',
+                        data: waterLevelData.map(d => d.level),
+                        borderColor: '#4CAF50',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: getComputedStyle(document.body).getPropertyValue('--chart-grid')
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.body).getPropertyValue('--chart-text')
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: getComputedStyle(document.body).getPropertyValue('--chart-text')
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: getComputedStyle(document.body).getPropertyValue('--text-color')
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Función para actualizar datos periódicamente
+        async function updateData() {
+            try {
+                const data = await getSensorData();
+                updateTankVisualization(data.distancia_cm);
+            } catch (error) {
+                showAlert('❌ Error al obtener datos del sensor');
+            }
+        }
+
+        // Iniciar actualizaciones periódicas
+        updateData();
+        setInterval(updateData, updateInterval);
+    </script>
+</body>
+</html> 
