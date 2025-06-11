@@ -715,7 +715,7 @@
             }
         };
 
-        // Información de plantas
+        // Información de plantas (mover al ámbito global)
         const plantInfo = {
             maiz: { name: "Maíz", icon: "🌽", cycle: "120-150 días" },
             tomate: { name: "Tomate", icon: "🍅", cycle: "90-120 días" },
@@ -725,7 +725,7 @@
             lechuga: { name: "Lechuga", icon: "🥬", cycle: "60-80 días" }
         };
 
-        // Información de suelos
+        // Información de suelos (mover al ámbito global)
         const soilInfo = {
             arenoso: { name: "Arenoso", icon: "🏖️", drainage: "Excelente", retention: "Baja" },
             arcilloso: { name: "Arcilloso", icon: "🪨", drainage: "Pobre", retention: "Alta" },
@@ -750,6 +750,9 @@
                 return;
             }
 
+            // Ocultar las instrucciones
+            document.querySelector('.recommendation').style.display = 'none';
+            
             showLoading();
             
             try {
@@ -786,6 +789,10 @@
                     distance: distance,
                     volume: volume
                 });
+                
+                // Mostrar resultados
+                document.getElementById('weatherInfo').style.display = 'block';
+                document.getElementById('recommendations').style.display = 'block';
                 
                 displayWeatherInfo(weatherData, location);
                 displayRecommendation(recommendation, plantType, soilType, area);
@@ -981,15 +988,60 @@
 
         function displayRecommendation(recommendation, plantType, soilType, area) {
             const results = document.getElementById('recommendations');
+            results.style.display = 'block'; // Asegurar que la sección sea visible
+            
+            const plant = plantInfo[plantType];
+            const soil = soilInfo[soilType];
+            
             results.innerHTML = `
                 <div class="result-item">
                     <h3>💧 Recomendaciones de Riego</h3>
-                    <p><strong>Tipo de Planta:</strong> ${plantType}</p>
-                    <p><strong>Tipo de Suelo:</strong> ${soilType}</p>
-                    <p><strong>Área:</strong> ${area} m²</p>
-                    <p><strong>Agua Necesaria:</strong> ${recommendation.totalWater} L</p>
-                    <p><strong>Frecuencia de Riego:</strong> ${recommendation.frequency}</p>
-                    <p><strong>Duración del Riego:</strong> ${recommendation.sessions}</p>
+                    <div class="recommendation-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Tipo de Planta:</span>
+                            <span class="detail-value">${plant.icon} ${plant.name}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Ciclo de Cultivo:</span>
+                            <span class="detail-value">${plant.cycle}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Tipo de Suelo:</span>
+                            <span class="detail-value">${soil.icon} ${soil.name}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Drenaje del Suelo:</span>
+                            <span class="detail-value">${soil.drainage}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Retención de Agua:</span>
+                            <span class="detail-value">${soil.retention}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Área del Cultivo:</span>
+                            <span class="detail-value">${area} m²</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Agua por m²:</span>
+                            <span class="detail-value">${recommendation.waterPerM2} L/m²</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Agua Total Necesaria:</span>
+                            <span class="detail-value">${recommendation.totalWater} L</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Agua Diaria:</span>
+                            <span class="detail-value">${recommendation.dailyWater} L</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Frecuencia de Riego:</span>
+                            <span class="detail-value">${recommendation.frequency}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Sesiones de Riego:</span>
+                            <span class="detail-value">${recommendation.sessions}</span>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -1070,7 +1122,9 @@
             }
 
             try {
-                // Simulación de datos del sensor (para pruebas)
+                // Obtener la distancia del sensor
+                const distance = await getSensorDistance();
+                console.log('Distancia obtenida:', distance, 'cm');
 
                 // Calcular altura de agua
                 const waterHeight = height - distance;
@@ -1096,11 +1150,11 @@
 
                 // Función para formatear el volumen con la unidad apropiada
                 function formatVolume(volumeInM3) {
-                    const volumeInMl = Math.round(volumeInM3 * 1000000);
-                    if (volumeInMl < 1000) {
-                        return `${volumeInMl} ml`;
+                    const volumeInL = Math.round(volumeInM3 * 1000);
+                    if (volumeInL < 1000) {
+                        return `${volumeInL} L`;
                     } else {
-                        return `${(volumeInMl / 1000).toFixed(2)} L`;
+                        return `${(volumeInL / 1000).toFixed(2)} m³`;
                     }
                 }
 
@@ -1108,9 +1162,20 @@
                 document.getElementById('initialVolume').textContent = formatVolume(initialVolume);
                 document.getElementById('currentVolume').textContent = formatVolume(currentVolume);
                 document.getElementById('consumedVolume').textContent = formatVolume(consumedVolume);
+                document.getElementById('tankLevelText').textContent = `${waterPercentage.toFixed(1)}%`;
+
+                // Cambiar el color según el nivel
+                if (waterPercentage < 20) {
+                    waterLevelElement.style.backgroundColor = '#ff5252'; // Rojo para nivel bajo
+                } else if (waterPercentage < 50) {
+                    waterLevelElement.style.backgroundColor = '#ffd740'; // Amarillo para nivel medio
+                } else {
+                    waterLevelElement.style.backgroundColor = '#4CAF50'; // Verde para nivel alto
+                }
 
                 hideError();
             } catch (error) {
+                console.error('Error al calcular el nivel de agua:', error);
                 showError('Error al calcular el nivel de agua.');
             }
         }
@@ -1329,6 +1394,11 @@
 
         // Función para obtener la distancia del sensor
         async function getSensorDistance() {
+            // Por ahora, retornamos un valor por defecto de 10cm
+            console.log('Usando valor por defecto para la distancia: 10cm');
+            return 10; // 10 centímetros por defecto
+            
+            /* Código original comentado para cuando tengas el sensor
             try {
                 // Intentamos primero con una petición directa
                 try {
@@ -1380,6 +1450,7 @@
                 console.error('Error al obtener la distancia:', error);
                 return 20; // Valor por defecto en caso de error
             }
+            */
         }
 
         // Función para calcular el volumen de agua
