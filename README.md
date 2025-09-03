@@ -17,7 +17,7 @@ El sistema informa **cuándo regar, cuánto regar** y muestra en tiempo real los
 ## 🛠️ Tecnologías utilizadas
 
 - **Frontend:** HTML, CSS, JavaScript  
-- **Backend:** PHP (si aplica en tu implementación)  
+- **Backend:** PHP 
 - **Sensores:** dispositivos IoT para la medición de agua/humedad  
 - **Comunicación:** Fetch API para obtener y mostrar datos en vivo  
 
