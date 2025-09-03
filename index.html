@@ -19,7 +19,7 @@
         [data-theme="dark"] {
             --primary-color: #66bb6a;
             --primary-dark: #4caf50;
-            --secondary-color: #42a5f5;
+            --secondary-100color: #42a5f5;
             --text-color: #ffffff;
             --bg-color: #1a1a1a;
             --card-bg: #2d2d2d;
@@ -690,12 +690,12 @@
                     <h3>📊 Historial de Riego</h3>
                     <div class="history-list" id="irrigationHistory">
                         <!-- El historial se llenará dinámicamente -->
-            </div>
-        </div>
+                    </div>
+                </div>
 
                 <div class="chart-container">
                     <canvas id="waterConsumptionChart"></canvas>
-    </div>
+                </div>
 
                 <div id="maintenanceAlerts">
                     <!-- Las alertas se mostrarán dinámicamente -->
@@ -709,6 +709,12 @@
 
     <script>
         const API_KEY = 'df08cb63089163374d7841e4f9715403';
+        // Configuración para el sensor
+        const USE_MOCK_SENSOR = false; // true = usar mock, false = usar sensor real
+        const SENSOR_URL = USE_MOCK_SENSOR
+            ? 'https://run.mocky.io/v3/2559cf62-d7c1-48a8-abd6-d0ec17108800'
+            : 'http://10.10.7.3';
+
         // Tabla de recomendaciones de riego (litros por m² por semana)
         const irrigationData = {
             maiz: {
@@ -809,6 +815,8 @@
             const recommendations = document.getElementById('recommendations');
             
             if (!plantType || !soilType) return;
+
+            recommendations.style.display = 'block'; // Mostrar recomendaciones
 
             const soil = soilInfo[soilType];
             let message = '';
@@ -1066,8 +1074,95 @@
                 totalWater: Math.round(totalWater),
                 dailyWater: Math.round(dailyWater),
                 frequency: calculateFrequency(soilType, weatherData),
-                sessions: calculateSessions(totalWater)
+                sessions: calculateSessions(totalWater),
+                irrigationType: determineIrrigationType(plantType, soilType, area)
             };
+        }
+
+        function determineIrrigationType(plantType, soilType, area) {
+            // Determinar el tipo de riego basado en el tipo de planta, suelo y área
+            if (area <= 50) {
+                return {
+                    type: "Riego por Goteo",
+                    advantages: [
+                        "Alta eficiencia en el uso del agua",
+                        "Ideal para cultivos sensibles",
+                        "Reduce la evaporación",
+                        "Permite fertirrigación"
+                    ]
+                };
+            }
+            
+            switch(plantType) {
+                case 'lechuga':
+                case 'tomate':
+                    return {
+                        type: "Riego por Goteo",
+                        advantages: [
+                            "Precisión en la aplicación de agua",
+                            "Reduce enfermedades foliares",
+                            "Ideal para cultivos sensibles",
+                            "Permite control de nutrientes"
+                        ]
+                    };
+                case 'maiz':
+                case 'alfalfa':
+                    return {
+                        type: "Riego por Aspersión",
+                        advantages: [
+                            "Cobertura uniforme",
+                            "Ideal para cultivos extensivos",
+                            "Simula lluvia natural",
+                            "Fácil automatización"
+                        ]
+                    };
+                case 'frijol':
+                    return soilType === 'arenoso' ? {
+                        type: "Riego por Goteo",
+                        advantages: [
+                            "Eficiencia en suelos arenosos",
+                            "Reduce pérdidas por percolación",
+                            "Control preciso del agua",
+                            "Ideal para cultivos de raíz"
+                        ]
+                    } : {
+                        type: "Riego por Microaspersión",
+                        advantages: [
+                            "Mejor distribución que el goteo",
+                            "Menor evaporación que aspersión",
+                            "Ideal para cultivos de media altura",
+                            "Cobertura más uniforme"
+                        ]
+                    };
+                case 'chile':
+                    return soilType === 'arenoso' ? {
+                        type: "Riego por Goteo",
+                        advantages: [
+                            "Control preciso de humedad",
+                            "Reduce enfermedades",
+                            "Ideal para cultivos sensibles",
+                            "Eficiencia en suelos arenosos"
+                        ]
+                    } : {
+                        type: "Riego por Microaspersión",
+                        advantages: [
+                            "Mejor distribución que el goteo",
+                            "Menor evaporación que aspersión",
+                            "Ideal para cultivos de media altura",
+                            "Cobertura más uniforme"
+                        ]
+                    };
+                default:
+                    return {
+                        type: "Riego por Aspersión",
+                        advantages: [
+                            "Cobertura uniforme",
+                            "Ideal para cultivos extensivos",
+                            "Simula lluvia natural",
+                            "Fácil automatización"
+                        ]
+                    };
+            }
         }
 
         function calculateFrequency(soilType, weatherData) {
@@ -1132,6 +1227,18 @@
                         <div class="detail-item">
                             <span class="detail-label">Área del Cultivo:</span>
                             <span class="detail-value">${area} m²</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Tipo de Riego Recomendado:</span>
+                            <span class="detail-value">${recommendation.irrigationType.type}</span>
+                        </div>
+                        <div class="detail-item" style="grid-column: 1 / -1;">
+                            <span class="detail-label">Ventajas del Sistema de Riego:</span>
+                            <ul style="list-style-type: none; padding: 0; margin: 5px 0;">
+                                ${recommendation.irrigationType.advantages.map(advantage => 
+                                    `<li style="margin: 5px 0; color: var(--primary-color);">✓ ${advantage}</li>`
+                                ).join('')}
+                            </ul>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Agua por m²:</span>
@@ -1313,7 +1420,6 @@
             // Actualizar el gráfico con los nuevos colores
             updateWaterConsumptionChart();
         }
-
         // Cargar tema guardado
         if (localStorage.getItem('theme') === 'dark') {
             document.body.setAttribute('data-theme', 'dark');
@@ -1326,7 +1432,7 @@
 
         function addToHistory(data) {
             const historyItem = {
-                date: new Date().toLocaleString(),
+                date: new Date().toISOString(),
                 plantType: data.plantType,
                 waterUsed: data.waterUsed,
                 weather: data.weather
@@ -1348,7 +1454,7 @@
                 <div class="history-item">
                     <div>
                         <strong>${item.plantType}</strong>
-                        <div>${item.date}</div>
+                        <div>${new Date(item.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}</div>
                     </div>
                     <div>${item.waterUsed}</div>
                 </div>
@@ -1367,9 +1473,10 @@
 
             const labels = irrigationHistory.map(item => {
                 const date = new Date(item.date);
-                return date.toLocaleDateString('es-ES', { 
+                return date.toLocaleDateString('es-ES', {
                     day: '2-digit',
-                    month: 'short'
+                    month: '2-digit',
+                    year: '2-digit'
                 });
             });
             
@@ -1506,63 +1613,28 @@
 
         // Función para obtener la distancia del sensor
         async function getSensorDistance() {
-            // Por ahora, retornamos un valor por defecto de 10cm
-            console.log('Usando valor por defecto para la distancia: 10cm');
-            return 10; // 10 centímetros por defecto
-            
-            /* Código original comentado para cuando tengas el sensor
             try {
-                // Intentamos primero con una petición directa
-                try {
-                    const response = await fetch('http://10.10.7.3', {
-                        method: 'GET',
-                        headers: {
-                             'Accept': 'application/json'
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del sensor');
+                const response = await fetch(SENSOR_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
                     }
-                    
-                    const data = await response.json();
-                    console.log('Datos del sensor:', data);
-                    
-                    if (typeof data.distancia_cm === 'undefined') {
-                        throw new Error('El valor distancia_cm no está presente en la respuesta');
-                    }
-                    
-                    return data.distancia_cm;
-                } catch (directError) {
-                    console.log('Error en petición directa:', directError);
-                    
-                    // Si falla la petición directa, intentamos con una petición JSONP
-                    return new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = `http://10.10.7.3?callback=handleSensorData`;
-                        script.onerror = () => {
-                            console.log('Error en petición JSONP, usando valor por defecto');
-                            resolve(20); // Valor por defecto
-                        };
-                        
-                        window.handleSensorData = function(data) {
-                            if (data && typeof data.distancia_cm !== 'undefined') {
-                                resolve(data.distancia_cm);
-                            } else {
-                                resolve(20); // Valor por defecto
-                            }
-                            document.body.removeChild(script);
-                            delete window.handleSensorData;
-                        };
-                        
-                        document.body.appendChild(script);
-                    });
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del sensor');
                 }
+                
+                const data = await response.json();
+                if (typeof data.distancia_cm === 'undefined') {
+                    throw new Error('El valor distancia_cm no está presente en la respuesta');
+                }
+                
+                return data.distancia_cm;
             } catch (error) {
                 console.error('Error al obtener la distancia:', error);
-                return 20; // Valor por defecto en caso de error
+                throw error;
             }
-            */
         }
 
         // Función para calcular el volumen de agua

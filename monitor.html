@@ -319,6 +319,12 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Cambia esta variable para alternar entre sensor real y mock
+        const USE_MOCK_SENSOR = false; // true = usar mock, false = usar sensor real
+        const SENSOR_URL = USE_MOCK_SENSOR
+            ? 'https://run.mocky.io/v3/2559cf62-d7c1-48a8-abd6-d0ec17108800'
+            : 'http://10.10.7.3';
+
         let waterChart;
         const updateInterval = 5000; // 5 segundos
         const maxDataPoints = 20; // Número máximo de puntos en el gráfico
@@ -327,18 +333,25 @@
         // Función para obtener datos del sensor
         async function getSensorData() {
             try {
-                // Por ahora usamos un valor simulado
-                const mockData = {
-                    distancia_cm: Math.floor(Math.random() * 50) + 10, // Valor aleatorio entre 10 y 60 cm
+                const response = await fetch(SENSOR_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error('Error en la respuesta del sensor');
+                }
+                const data = await response.json();
+                if (typeof data.distancia_cm === 'undefined') {
+                    throw new Error('El valor distancia_cm no está presente en la respuesta');
+                }
+                return {
+                    distancia_cm: data.distancia_cm,
                     timestamp: new Date().toISOString()
                 };
-                
-                // Simulamos un pequeño retraso como si fuera una petición real
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                return mockData;
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error al obtener datos del sensor:', error);
                 throw error;
             }
         }
